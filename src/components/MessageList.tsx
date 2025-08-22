@@ -4,21 +4,24 @@ import { useAuth } from '@/hooks/useAuth';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Hash } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import type { Json } from '@/integrations/supabase/types';
+
+interface MessageProfile {
+  username: string;
+  display_name?: string;
+  avatar_url?: string;
+}
 
 interface Message {
   id: string;
   channel_id: string;
   user_id: string;
   content?: string;
-  attachments?: any[];
+  attachments?: Json;
   edited_at?: string;
   deleted_at?: string;
   created_at: string;
-  profiles?: {
-    username: string;
-    display_name?: string;
-    avatar_url?: string;
-  };
+  profiles?: MessageProfile;
 }
 
 interface MessageListProps {
@@ -47,7 +50,7 @@ const MessageList = ({ channelId }: MessageListProps) => {
         .from('messages')
         .select(`
           *,
-          profiles:user_id (
+          profiles!messages_user_id_fkey (
             username,
             display_name,
             avatar_url
@@ -89,7 +92,7 @@ const MessageList = ({ channelId }: MessageListProps) => {
             .from('messages')
             .select(`
               *,
-              profiles:user_id (
+              profiles!messages_user_id_fkey (
                 username,
                 display_name,
                 avatar_url
@@ -174,9 +177,9 @@ const MessageList = ({ channelId }: MessageListProps) => {
               {message.content || <em className="text-muted-foreground">Message deleted</em>}
             </div>
             
-            {message.attachments && message.attachments.length > 0 && (
+            {message.attachments && Array.isArray(message.attachments) && message.attachments.length > 0 && (
               <div className="mt-2 space-y-2">
-                {message.attachments.map((attachment, i) => (
+                {message.attachments.map((attachment: any, i: number) => (
                   <div key={i} className="max-w-sm">
                     {attachment.type?.startsWith('image/') ? (
                       <img

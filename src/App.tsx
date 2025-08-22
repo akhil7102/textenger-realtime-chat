@@ -7,8 +7,6 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
-import AppShell from "./components/AppShell";
-import AuthGuard from "./components/AuthGuard";
 
 const queryClient = new QueryClient();
 
@@ -21,11 +19,6 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/app/*" element={
-              <AuthGuard>
-                <AppShell />
-              </AuthGuard>
-            } />
             <Route path="/" element={<Index />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

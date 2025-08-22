@@ -5,15 +5,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Crown, Shield, UserCheck, User } from 'lucide-react';
 
+interface MemberProfile {
+  username: string;
+  display_name?: string;
+  avatar_url?: string;
+}
+
 interface Member {
   user_id: string;
   role: 'owner' | 'admin' | 'moderator' | 'member';
   joined_at: string;
-  profiles: {
-    username: string;
-    display_name?: string;
-    avatar_url?: string;
-  };
+  profiles: MemberProfile;
 }
 
 const MemberList = () => {
@@ -38,7 +40,7 @@ const MemberList = () => {
           user_id,
           role,
           joined_at,
-          profiles:user_id (
+          profiles!room_members_user_id_fkey (
             username,
             display_name,
             avatar_url
