@@ -42,13 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, username: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
-      
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: {
             username,
             display_name: username
@@ -65,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         toast({
           title: "Welcome to Textenger!",
-          description: "Please check your email to verify your account.",
+          description: "Your account has been created successfully. You can start using the app immediately.",
         });
       }
 
