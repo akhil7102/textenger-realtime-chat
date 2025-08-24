@@ -1,56 +1,61 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, UserPlus, MessageCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
-interface Friend {
+interface Profile {
   id: string;
-  name: string;
   username: string;
-  avatar?: string;
-  isOnline: boolean;
-  gameStatus?: string;
+  display_name: string;
+  avatar_url?: string;
+  bio?: string;
+  favorite_game?: string;
+  current_rank?: string;
 }
 
-const mockFriends: Friend[] = [
-  {
-    id: "1",
-    name: "Alex Chen",
-    username: "@alexgamer",
-    isOnline: true,
-    gameStatus: "Playing Valorant"
-  },
-  {
-    id: "2",
-    name: "Sarah Johnson", 
-    username: "@sarahj",
-    isOnline: true,
-    gameStatus: "In lobby"
-  },
-  {
-    id: "3",
-    name: "Mike Torres",
-    username: "@miket",
-    isOnline: false
-  },
-  {
-    id: "4",
-    name: "Emma Wilson",
-    username: "@emmaw",
-    isOnline: true,
-    gameStatus: "Playing CS2"
-  }
-];
-
 export function BrowseFriendsPage() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Profile[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const filteredFriends = mockFriends.filter(friend =>
-    friend.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    friend.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const searchUsers = async (query: string) => {
+    if (!query.trim() || !user) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, avatar_url, bio, favorite_game, current_rank')
+        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+        .neq('id', user.id)
+        .limit(20);
+
+      if (error) throw error;
+      setSearchResults(data || []);
+    } catch (error) {
+      console.error('Error searching users:', error);
+      toast.error("Failed to search users");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchUsers(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, user]);
 
   return (
     <div className="flex-1 p-6 bg-background">
@@ -62,62 +67,78 @@ export function BrowseFriendsPage() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
               <Input
-                placeholder="Search friends..."
+                placeholder="Search by username or display name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-muted border-0 hover-glow focus:glow-ring"
               />
             </div>
-            <Button className="gradient-button hover-glow">
-              <UserPlus size={16} className="mr-2" />
-              Add Friend
-            </Button>
           </div>
         </div>
 
-        {/* Friends Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredFriends.map((friend) => (
-            <Card key={friend.id} className="gradient-border hover-glow">
-              <CardHeader className="text-center pb-4">
-                <div className="flex justify-center">
-                  <Avatar className={`h-16 w-16 ${friend.isOnline ? 'glow-ring' : ''}`}>
-                    <AvatarImage src={friend.avatar} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-lg">
-                      {friend.name.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-                <CardTitle className="text-lg gradient-text">{friend.name}</CardTitle>
-                <p className="text-sm text-muted-foreground">{friend.username}</p>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="text-center">
-                  {friend.isOnline ? (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm text-green-400">Online</span>
+        {/* Search Results */}
+        {searchQuery && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold gradient-text">
+              Search Results {isSearching && "(Searching...)"}
+            </h2>
+            
+            {searchResults.length === 0 && !isSearching && searchQuery && (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No users found matching "{searchQuery}"</p>
+              </div>
+            )}
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {searchResults.map((profile) => (
+                <Card key={profile.id} className="gradient-border hover-glow">
+                  <CardHeader className="text-center pb-4">
+                    <div className="flex justify-center">
+                      <Avatar className="h-16 w-16 glow-ring">
+                        <AvatarImage src={profile.avatar_url} />
+                        <AvatarFallback className="bg-primary text-primary-foreground text-lg gradient-button">
+                          {(profile.display_name || profile.username || 'U')[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <CardTitle className="text-lg gradient-text">
+                      {profile.display_name || profile.username}
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">@{profile.username}</p>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {profile.favorite_game && (
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground">Playing: {profile.favorite_game}</p>
+                        {profile.current_rank && (
+                          <p className="text-xs text-green-400">Rank: {profile.current_rank}</p>
+                        )}
                       </div>
-                      {friend.gameStatus && (
-                        <p className="text-xs text-muted-foreground">{friend.gameStatus}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                      <span className="text-sm text-muted-foreground">Offline</span>
-                    </div>
-                  )}
-                </div>
-                <Button variant="outline" className="w-full gradient-border hover-glow">
-                  <MessageCircle size={16} className="mr-2" />
-                  Message
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    )}
+                    {profile.bio && (
+                      <p className="text-xs text-muted-foreground text-center truncate">{profile.bio}</p>
+                    )}
+                    <Button variant="outline" className="w-full gradient-border hover-glow">
+                      <MessageCircle size={16} className="mr-2" />
+                      Message
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Instructions when no search */}
+        {!searchQuery && (
+          <div className="text-center py-12">
+            <Search className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <h3 className="text-xl font-semibold gradient-text mb-2">Find Your Friends</h3>
+            <p className="text-muted-foreground">
+              Start typing in the search box above to find other users by their username or display name.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

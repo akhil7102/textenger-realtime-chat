@@ -75,6 +75,48 @@ export type Database = {
           },
         ]
       }
+      direct_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          receiver_id: string
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          receiver_id: string
+          sender_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          receiver_id?: string
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "direct_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invites: {
         Row: {
           created_at: string
@@ -244,8 +286,11 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           created_at: string
+          current_rank: string | null
           display_name: string | null
+          favorite_game: string | null
           id: string
+          steam_id: string | null
           updated_at: string
           username: string
         }
@@ -253,8 +298,11 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          current_rank?: string | null
           display_name?: string | null
+          favorite_game?: string | null
           id: string
+          steam_id?: string | null
           updated_at?: string
           username: string
         }
@@ -262,8 +310,11 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          current_rank?: string | null
           display_name?: string | null
+          favorite_game?: string | null
           id?: string
+          steam_id?: string | null
           updated_at?: string
           username?: string
         }
@@ -305,9 +356,49 @@ export type Database = {
           },
         ]
       }
+      room_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          room_id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          room_id: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          room_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rooms: {
         Row: {
           created_at: string
+          description: string | null
           icon_url: string | null
           id: string
           name: string
@@ -315,6 +406,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           icon_url?: string | null
           id?: string
           name: string
@@ -322,6 +414,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           icon_url?: string | null
           id?: string
           name?: string

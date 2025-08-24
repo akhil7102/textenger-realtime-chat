@@ -1,127 +1,193 @@
-import { useState } from "react";
-import { Search } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Plus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
-interface ChatUser {
+interface Conversation {
   id: string;
-  name: string;
-  avatar?: string;
-  lastMessage: string;
-  timestamp: string;
-  isOnline: boolean;
+  other_user: {
+    id: string;
+    username: string;
+    display_name?: string;
+    avatar_url?: string;
+  };
+  last_message?: {
+    content: string;
+    created_at: string;
+    sender_id: string;
+  };
 }
 
-const mockChats: ChatUser[] = [
-  {
-    id: "1",
-    name: "Helena Hills",
-    avatar: "",
-    lastMessage: "Will head to the Help Center...",
-    timestamp: "20m ago",
-    isOnline: true
-  },
-  {
-    id: "2", 
-    name: "Carlo Emilio",
-    avatar: "",
-    lastMessage: "Let's go",
-    timestamp: "1h ago",
-    isOnline: false
-  },
-  {
-    id: "3",
-    name: "Oscar Davis", 
-    avatar: "",
-    lastMessage: "Trueeeeee",
-    timestamp: "2h ago",
-    isOnline: true
-  },
-  {
-    id: "4",
-    name: "Daniel Jay Park",
-    avatar: "",
-    lastMessage: "lol yeah, are you coming to the lunc...",
-    timestamp: "3h ago",
-    isOnline: false
-  },
-  {
-    id: "5",
-    name: "Mark Rojas",
-    avatar: "",
-    lastMessage: "great catching up over dinner!!",
-    timestamp: "1d ago", 
-    isOnline: true
-  },
-  {
-    id: "6",
-    name: "Giannis Constantinou",
-    avatar: "",
-    lastMessage: "yep 👍👍",
-    timestamp: "2d ago",
-    isOnline: false
-  }
-];
+interface ChatListProps {
+  onSelectChat: (userId: string) => void;
+  selectedUserId?: string | null;
+}
 
-export function ChatList() {
-  const [selectedChat, setSelectedChat] = useState("1");
+export function ChatList({ onSelectChat, selectedUserId }: ChatListProps) {
+  const { user } = useAuth();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredChats = mockChats.filter(chat =>
-    chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    if (user) {
+      loadConversations();
+    }
+  }, [user]);
+
+  const loadConversations = async () => {
+    try {
+      // Get all direct messages involving this user
+      const { data: messages, error } = await supabase
+        .from('direct_messages')
+        .select(`
+          id,
+          sender_id,
+          receiver_id,
+          content,
+          created_at,
+          sender:sender_id (id, username, display_name, avatar_url),
+          receiver:receiver_id (id, username, display_name, avatar_url)
+        `)
+        .or(`sender_id.eq.${user?.id},receiver_id.eq.${user?.id}`)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Group messages by conversation partner
+      const conversationMap = new Map<string, Conversation>();
+      
+      messages?.forEach((message: any) => {
+        const isUserSender = message.sender_id === user?.id;
+        const otherUser = isUserSender ? message.receiver : message.sender;
+        const conversationKey = otherUser.id;
+
+        if (!conversationMap.has(conversationKey)) {
+          conversationMap.set(conversationKey, {
+            id: conversationKey,
+            other_user: otherUser,
+            last_message: {
+              content: message.content,
+              created_at: message.created_at,
+              sender_id: message.sender_id
+            }
+          });
+        }
+      });
+
+      setConversations(Array.from(conversationMap.values()));
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+      toast.error("Failed to load conversations");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredConversations = conversations.filter(conv =>
+    conv.other_user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (conv.other_user.display_name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (loading) {
+    return (
+      <div className="w-80 border-r border-border bg-muted/30 p-4">
+        <div className="animate-pulse space-y-4">
+          <div className="h-10 bg-muted rounded"></div>
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex gap-3">
+                <div className="w-10 h-10 bg-muted rounded-full"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-muted rounded w-3/4"></div>
+                  <div className="h-3 bg-muted rounded w-1/2"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-80 bg-background border-r border-border flex flex-col">
+    <div className="w-80 border-r border-border bg-muted/30 flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold gradient-text mb-3">Direct Messages</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold gradient-text">Direct Messages</h2>
+          <Button size="sm" variant="ghost" className="hover-glow">
+            <Plus size={16} />
+          </Button>
+        </div>
         
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={16} />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={14} />
           <Input
-            placeholder="Search chats"
+            placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-muted border-0 hover-glow focus:glow-ring"
+            className="pl-9 bg-muted border-0 hover-glow focus:glow-ring"
           />
         </div>
       </div>
 
-      {/* Chat List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {filteredChats.map((chat) => (
-          <button
-            key={chat.id}
-            onClick={() => setSelectedChat(chat.id)}
-            className={cn(
-              "w-full p-4 flex items-center gap-3 hover:bg-muted/50 transition-all duration-300 text-left hover-glow",
-              selectedChat === chat.id && "bg-muted gradient-border"
-            )}
-          >
-            <div className="relative">
-              <Avatar className={cn("h-10 w-10", chat.isOnline && "glow-ring")}>
-                <AvatarImage src={chat.avatar} />
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {chat.name.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
-              {chat.isOnline && (
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background glow-ring" />
-              )}
-            </div>
-            
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-medium text-foreground truncate">{chat.name}</span>
-                <span className="text-xs text-muted-foreground">{chat.timestamp}</span>
-              </div>
-              <p className="text-sm text-muted-foreground truncate">{chat.lastMessage}</p>
-            </div>
-          </button>
-        ))}
+      {/* Conversations List */}
+      <div className="flex-1 overflow-y-auto">
+        {filteredConversations.length === 0 ? (
+          <div className="p-4 text-center text-muted-foreground">
+            {searchQuery ? "No conversations found" : "No conversations yet"}
+          </div>
+        ) : (
+          <div className="p-2">
+            {filteredConversations.map((conversation) => (
+              <Button
+                key={conversation.id}
+                variant="ghost"
+                className={`w-full p-3 h-auto justify-start hover-glow ${
+                  selectedUserId === conversation.other_user.id 
+                    ? 'bg-muted text-foreground gradient-border' 
+                    : 'text-muted-foreground'
+                }`}
+                onClick={() => onSelectChat(conversation.other_user.id)}
+              >
+                <div className="flex gap-3 w-full">
+                  <Avatar className="h-10 w-10 flex-shrink-0">
+                    <AvatarImage src={conversation.other_user.avatar_url} />
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {(conversation.other_user.display_name || conversation.other_user.username)[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex-1 text-left overflow-hidden">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold truncate">
+                        {conversation.other_user.display_name || conversation.other_user.username}
+                      </h4>
+                      {conversation.last_message && (
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(conversation.last_message.created_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {conversation.last_message && (
+                      <p className="text-sm text-muted-foreground truncate">
+                        {conversation.last_message.sender_id === user?.id ? 'You: ' : ''}
+                        {conversation.last_message.content}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
