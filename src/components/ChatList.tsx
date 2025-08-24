@@ -76,7 +76,7 @@ export function ChatList() {
     <div className="w-80 bg-background border-r border-border flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold text-foreground mb-3">Direct Messages</h2>
+        <h2 className="text-lg font-semibold gradient-text mb-3">Direct Messages</h2>
         
         {/* Search */}
         <div className="relative">
@@ -85,7 +85,7 @@ export function ChatList() {
             placeholder="Search chats"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-muted border-0"
+            className="pl-10 bg-muted border-0 hover-glow focus:glow-ring"
           />
         </div>
       </div>
@@ -97,19 +97,19 @@ export function ChatList() {
             key={chat.id}
             onClick={() => setSelectedChat(chat.id)}
             className={cn(
-              "w-full p-4 flex items-center gap-3 hover:bg-muted/50 transition-colors text-left",
-              selectedChat === chat.id && "bg-muted"
+              "w-full p-4 flex items-center gap-3 hover:bg-muted/50 transition-all duration-300 text-left hover-glow",
+              selectedChat === chat.id && "bg-muted gradient-border"
             )}
           >
             <div className="relative">
-              <Avatar className="h-10 w-10">
+              <Avatar className={cn("h-10 w-10", chat.isOnline && "glow-ring")}>
                 <AvatarImage src={chat.avatar} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
                   {chat.name.split(' ').map(n => n[0]).join('')}
                 </AvatarFallback>
               </Avatar>
               {chat.isOnline && (
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background glow-ring" />
               )}
             </div>
             
